@@ -1,7 +1,7 @@
 --[[
-    STANDO V5 - DEFINITIVE & POLISHED VERSION (Remote Path Hotfix)
-    This version corrects the path to the chat RemoteEvent, which was causing the
-    initialization to fail due to a game update.
+    STANDO V5 - DEFINITIVE & POLISHED VERSION (Alias Hotfix)
+    This version corrects a scope issue with the command aliasing that caused
+    a runtime error on initialization.
 ]]
 
 coroutine.wrap(function()
@@ -56,11 +56,7 @@ coroutine.wrap(function()
     function Initialize()
         print("Stando V5: Finding game RemoteEvents...")
         local success, err = pcall(function()
-            -- ===================================================================
-            -- >> HOTFIX: Corrected the path for the chat remote <<
-            -- ===================================================================
             Remotes.SayMessage = TextChatService:WaitForChild("TextChatRemoteEvent", 15)
-            -- ===================================================================
             Remotes.Stomp = ReplicatedStorage:WaitForChild("Main", 15)
             Remotes.Animation = ReplicatedStorage:WaitForChild("Animation", 15)
             Remotes.Gun = ReplicatedStorage:WaitForChild("Main", 15)
@@ -115,7 +111,6 @@ coroutine.wrap(function()
     --\\=========================================================================//
     
     function FindStand() for _, p in pairs(Players:GetPlayers()) do if p.Name == OwnerName then StandAccount, CurrentOwner = p, p; return true end end return false end
-    -- The new Say function for the updated TextChatService
     function Say(message) if Remotes.SayMessage then pcall(function() Remotes.SayMessage:FireServer(message, {}) end) end end
     function SendStandMessage(message) if Config.ChatCmds then Say(message) end end
     function GetPlayer(name) for _, p in pairs(Players:GetPlayers()) do if p.Name:lower():sub(1, #name) == name:lower() then return p end end return nil end
@@ -123,8 +118,8 @@ coroutine.wrap(function()
     function GetOwnerCharacter() return LocalPlayer and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character end
     function PlaySound(id) if not Config.Sounds then return end local s = Instance.new("Sound", Workspace); s.SoundId = "rbxassetid://"..tostring(id); s:Play(); game.Debris:AddItem(s, 20) end
     function Animate(animId) if Remotes.Animation and GetOwnerCharacter() then local anim = Instance.new("StringValue", GetOwnerCharacter()); anim.Name = "playanimation"; anim.Value = animId; game.Debris:AddItem(anim, 1) end end
-    function Invoke(remote, ...) local args = {...}; pcall(function() if Remotes[remote] then Remotes[remote]:InvokeServer(unpack(args)) end end) end
-    function Fire(remote, ...) local args = {...}; pcall(function() if Remotes[remote] then Remotes[remote]:FireServer(unpack(args)) end end) end
+    function Invoke(remote, ...) pcall(function() if Remotes[remote] then Remotes[remote]:InvokeServer(...) end end) end
+    function Fire(remote, ...) pcall(function() if Remotes[remote] then Remotes[remote]:FireServer(...) end end) end
     
     --//=========================================================================\\
     --||                           COMBAT FUNCTIONS                              ||
@@ -165,64 +160,76 @@ coroutine.wrap(function()
     --//=========================================================================\\
     --||                           COMMAND HANDLER                               ||
     --\\=========================================================================//
-    do
-        local C,A=Commands,Aliases;C.s=function()C.summon()end;C["/e q"]=C.s;C["/e q1"]=C.s;C["/e q2"]=C.s;C["/e q3"]=C.s;C["summon!"]=C.s;C["summon1!"]=C.s;C["summon2!"]=C.s;C["summon3!"]=C.s
-        for n,_ in pairs(StandData) do C[n:lower().."!"]=function()Config.StandMode=n;C.summon()end end
-        C.summon=function()Attacking=true;if Config.SummonPoses and Config.SummonPoses~="false" then local pN=tonumber(Config.SummonPoses:match("%d+"))or 1;if StandData[Config.StandMode]and StandData[Config.StandMode].Poses[pN]then Animate(StandData[Config.StandMode].Poses[pN])end end;if Config.SummonMusic then local sId=Config.SummonMusicID=='Default'and StandData[Config.StandMode]and StandData[Config.StandMode].SummonSound or Config.SummonMusicID;PlaySound(sId)end;Say(Config.CustomSummon)end
-        C.vanish=function()Attacking,AnnoyLoop,AutoKillLoop,GAutoKillLoop=false,false,false,false;Say("Vanish!")end;A["vanish!"]=C.vanish;A["desummon!"]=C.vanish;A["/e w"]=C.vanish
-        C["attack!"]=function()Attacking=true end;C["unattack!"]=function()Attacking=false end;A["stab!"]=C["attack!"];A["unstab!"]=C["unattack!"];A["gkill!"]=C["attack!"]
-        C["combat!"]=function()Config.Melee="Punch"end;C["knife!"]=function()Config.Melee="Knife"end;C["pitch!"]=function()Config.Melee="Pitchfork"end;C["sign!"]=function()Config.Melee="Stopsign"end;C["whip!"]=function()Config.Melee="Whip"end
-        C["hidden!"]=function()Config.AttackMode="Under"end;C["default!"]=function()Config.AttackMode="Sky"end;C["drop!"]=function()local c=GetTargetCharacter();if c then c.Humanoid.Sit=true end end
-        C["throw!"]=function()local c=GetTargetCharacter();if c then c.HumanoidRootPart.Velocity=Camera.CFrame.LookVector*100+Vector3.new(0,50,0)end end
-        C["resolver!"]=function()Config.Resolver=true end;C["unresolver!"]=function()Config.Resolver=false end
-        C.target=function(a)local n=a[1];if not n then return end if n:lower()=="me"then TargetPlayer=CurrentOwner elseif n:lower()=="unlock"then TargetPlayer=nil;SendStandMessage("Unlocked.")else local f=GetPlayer(n);if f then TargetPlayer=f;SendStandMessage("Target: "..f.Name)else SendStandMessage("Not found: "..n)end end end
-        C.bring=function()local t=GetTargetCharacter();if t and GetOwnerCharacter()then t.HumanoidRootPart.CFrame=GetOwnerCharacter().HumanoidRootPart.CFrame end end
-        C.gbring=function()local t=GetTargetCharacter();if t and GetOwnerCharacter()then Fire("Melee","Social","Carry",t.Torso);task.wait(0.2);t.HumanoidRootPart.CFrame=GetOwnerCharacter().HumanoidRootPart.CFrame end end
-        C.smite=function()local t=GetTargetCharacter();if t then t.HumanoidRootPart.Velocity=Vector3.new(0,2000,0)end end
-        C.view=function()if GetTargetCharacter()then Camera.CameraSubject=GetTargetCharacter().Humanoid end end;C["view!"]=C.view
-        C.frame=function()Config.Position="Target"end;C.bag=function()local t=GetTargetCharacter();if t then Invoke("Melee","Social","Bag",t.Torso)end end
-        C.arrest=function()local t=GetTargetCharacter();if t then Invoke("Melee","Social","Arrest",t.Torso)end end
-        C.knock=function()local t=GetTargetCharacter();if t then Invoke("Melee","Melee",Config.Melee,t.HumanoidRootPart.CFrame+Vector3.new(0,2,0),t.Torso)end end;C.k=C.knock
-        C.pull=function()local t=GetTargetCharacter();if t then Invoke("Melee","Social","Hairpull",t.Torso)end end
-        C.taser=function()local t=GetTargetCharacter();if t then Fire("Gun","Gun","Shoot",t.HumanoidRootPart.Position,t.Torso,"Taser")end end
-        C.autokill=function()AutoKillLoop=not AutoKillLoop;if AutoKillLoop and TargetPlayer then SendStandMessage("Autokill ON.");LoopKill(TargetPlayer,false)else AutoKillLoop=false;SendStandMessage("Autokill OFF.")end end
-        C.stomp=function()local t=GetTargetCharacter();if t then Fire("Stomp","Stomp",t.Torso)end end
-        C.annoy=function()AnnoyLoop=not AnnoyLoop;SendStandMessage("Annoy: "..tostring(AnnoyLoop))end;C.kannoy=C.annoy
-        C.gknock=function()local t=GetTargetCharacter();if t then Fire("Gun","Gun","Shoot",t.HumanoidRootPart.Position,t.Torso,Config.GunMode)end end;C.gstomp=C.gknock
-        C.gauto=function()GAutoKillLoop=not GAutoKillLoop;if GAutoKillLoop and TargetPlayer then SendStandMessage("Gun Autokill ON.");LoopKill(TargetPlayer,true)else GAutoKillLoop=false;SendStandMessage("Gun Autokill OFF.")end end
-        C.fstomp=function()local t=GetTargetCharacter();if t then Invoke("Melee","Melee","Flamethrower",t.HumanoidRootPart.CFrame,t.Torso)end end;C.fknock=C.fstomp
-        C.rk=function()local t=GetTargetCharacter();if t and t:FindFirstChild("Right Leg")then t["Right Leg"]:Destroy()end end
-        C.rm=function()local t=GetTargetCharacter();if t then for _,v in pairs(t:GetChildren())do if v:IsA("BasePart")then v:Destroy()end end end end
-        C.blow=function()Animate("6522770228")end;C.doggy=function()Animate("6522765039")end
-        C["hide!"]=function()Config.AutoMask=true end;C.surgeon=function()Config.MaskMode="Surgeon"end;C.paintball=function()Config.MaskMode="Paintball"end;C.pumpkin=function()Config.MaskMode="Pumpkin"end
-        C.hockey=function()Config.MaskMode="Hockey"end;C.ninja=function()Config.MaskMode="Ninja"end;C.riot=function()Config.MaskMode="Riot"end;C.breathing=function()Config.MaskMode="Breathing"end;C.skull=function()Config.MaskMode="Skull"end
-        C.hover=function()Config.FlyMode="Hover"end;C.flyv1=function()Config.FlyMode="FlyV1"end;C.flyv2=function()Config.FlyMode="FlyV2"end;C.glide=function()Config.FlyMode="Glide"end;C.heaven=function()Config.FlyMode="Heaven"end
-        C.goto=function(a)local p=a[1]and a[1]:lower();if Locations[p]and GetOwnerCharacter()then GetOwnerCharacter().HumanoidRootPart.CFrame=CFrame.new(Locations[p])end end
-        for _,al in ipairs({"goto!","tp!","to!",".tp",".to",".goto"})do C[al]=C.goto end
-        C.give=function(a)local p=GetPlayer(a[1]);if p then CurrentOwner=p;SendStandMessage("Stand given to "..p.Name)end end;C["return"]=function()CurrentOwner=StandAccount;SendStandMessage("Stand returned.")end
-        C["gun!"]=function()Invoke("Purchase",Config.GunMode,"Guns",100)end;C.rifle=function()Config.GunMode="Rifle"end;C.lmg=function()Config.GunMode="LMG"end;C.aug=function()Config.GunMode="Aug"end
-        C["autodrop!"]=function()AutoDropping=true end;C["unautodrop!"]=function()AutoDropping=false end
-        C["wallet!"]=function()local c=GetOwnerCharacter();if c and c:FindFirstChild("Wallet")then c.Wallet:Clone().Parent=c end end;C["unwallet!"]=function()local c=GetOwnerCharacter();if c and c:FindFirstChild("Wallet")then c.Wallet:Destroy()end end
-        C.dcash=function()Fire("DropCash",15000)end
-        C["left!"]=function()Config.Position="Left"end;C["right!"]=function()Config.Position="Right"end;C["back!"]=function()Config.Position="Back"end;C["under!"]=function()Config.Position="Under"end;C["alt!"]=function()Config.Position="Mid"end
-        C["upright!"]=function()Config.Position="UpRight"end;C["upleft!"]=function()Config.Position="UpLeft"end;C["upcenter!"]=function()Config.Position="UpMid"end;C["walk!"]=function()Config.Position="Walk"end
-        C["ac!"]=function()AutoCalling=not AutoCalling end;C["rejoin!"]=function()TeleportService:Teleport(game.PlaceId)end;C["rj!"]=C["rejoin!"];C["leave!"]=function()LocalPlayer:Kick()end
-        C["autosave!"]=function()AutoSaving=true end;C["unautosave!"]=function()AutoSaving=false end;C["re!"]=function()if GetOwnerCharacter()then GetOwnerCharacter().Humanoid.Health=0 end end
-        C["heal!"]=function()local h=GetOwnerCharacter().Humanoid;if h then h.Health=h.MaxHealth end end;C["song!"]=function()PlaySound(Config.CustomSong)end
-        C["stopaudio!"]=function()for _,s in pairs(Workspace:GetChildren())do if s:IsA("Sound")then s:Stop()end end end;C["stop!"]=function()Config.Position="Stop"end
-        C["crew!"]=function()if Config.CrewID then pcall(GroupService.JoinGroup,GroupService,Config.CrewID)end end;C["uncrew!"]=function()if Config.CrewID then pcall(GroupService.LeaveGroup,GroupService,Config.CrewID)end end
-        C["moveset1"]=function()Invoke("Melee","Moveset",1)end;C["moveset2"]=function()Invoke("Melee","Moveset",2)end
-        C["weld!"]=function()local c=GetOwnerCharacter();if c then c.HumanoidRootPart.Anchored=true end end;C["unblock!"]=function()local c=GetOwnerCharacter();if c then c.HumanoidRootPart.Anchored=false end end
-        C.pose1=function()local p=StandData[Config.StandMode]and StandData[Config.StandMode].Poses;if p then Animate(p[1])end end;C.pose2=function()local p=StandData[Config.StandMode]and StandData[Config.StandMode].Poses;if p then Animate(p[2])end end;C.pose3=function()local p=StandData[Config.StandMode]and StandData[Config.StandMode].Poses;if p then Animate(p[3])end end
-        C["police!"]=function()if Teams:FindFirstChild("Police")then LocalPlayer.Team=Teams.Police end end
-        C["lettuce!"]=function()AutoLettuce=true end;C["unlettuce!"]=function()AutoLettuce=false end
-        C["lowgfx!"]=function()settings().Rendering.QualityLevel="Level01"end;C["redeem!"]=function(a)Fire("Code",a[1])end
-        C["unjail!"]=function()if GetOwnerCharacter()then GetOwnerCharacter().HumanoidRootPart.CFrame=CFrame.new(-520,18,50)end end
-        C["barrage!"]=function()Animate("6522778945")end;C["muda!"]=C["barrage!"];C["ora!"]=C["barrage!"]
-        C["altmode!"]=function(a)local f=GetPlayer(a[1]);if f then AltTarget=f;SendStandMessage("Alt target: "..f.Name)end end
-        C["vhc!"]=function()Fire("Vehicle","Car")end
-    end
     
+    -- Summon/Vanish
+    Commands.s = function() Commands.summon() end
+    Commands["/e q"] = Commands.s; Commands["/e q1"] = Commands.s; Commands["/e q2"] = Commands.s; Commands["/e q3"] = Commands.s
+    Commands["summon!"] = Commands.s; Commands["summon1!"] = Commands.s; Commands["summon2!"] = Commands.s; Commands["summon3!"] = Commands.s
+    for standName, _ in pairs(StandData) do Commands[standName:lower().."!"] = function() Config.StandMode = standName; Commands.summon() end end
+    Commands.summon = function() Attacking = true; if Config.SummonPoses and Config.SummonPoses~="false" then local pN=tonumber(Config.SummonPoses:match("%d+"))or 1;if StandData[Config.StandMode]and StandData[Config.StandMode].Poses[pN]then Animate(StandData[Config.StandMode].Poses[pN])end end;if Config.SummonMusic then local sId=Config.SummonMusicID=='Default'and StandData[Config.StandMode]and StandData[Config.StandMode].SummonSound or Config.SummonMusicID;PlaySound(sId)end;Say(Config.CustomSummon)end
+    Commands.vanish = function() Attacking,AnnoyLoop,AutoKillLoop,GAutoKillLoop=false,false,false,false;Say("Vanish!") end
+    Commands["vanish!"] = Commands.vanish; Commands["desummon!"] = Commands.vanish; Commands["/e w"] = Commands.vanish
+
+    -- Attack
+    Commands["attack!"] = function() Attacking = true end; Commands["unattack!"] = function() Attacking = false end
+    Commands["stab!"] = Commands["attack!"]; Commands["unstab!"] = Commands["unattack!"]; Commands["gkill!"] = Commands["attack!"]
+
+    -- Attack Modes
+    Commands["combat!"]=function()Config.Melee="Punch"end;Commands["knife!"]=function()Config.Melee="Knife"end;Commands["pitch!"]=function()Config.Melee="Pitchfork"end;Commands["sign!"]=function()Config.Melee="Stopsign"end;Commands["whip!"]=function()Config.Melee="Whip"end
+    Commands["hidden!"]=function()Config.AttackMode="Under"end;Commands["default!"]=function()Config.AttackMode="Sky"end;Commands["drop!"]=function()local c=GetTargetCharacter();if c then c.Humanoid.Sit=true end end
+    Commands["throw!"]=function()local c=GetTargetCharacter();if c then c.HumanoidRootPart.Velocity=Camera.CFrame.LookVector*100+Vector3.new(0,50,0)end end
+    Commands["resolver!"]=function()Config.Resolver=true end;Commands["unresolver!"]=function()Config.Resolver=false end
+
+    -- Targeting
+    Commands.target=function(a)local n=a[1];if not n then return end if n:lower()=="me"then TargetPlayer=CurrentOwner elseif n:lower()=="unlock"then TargetPlayer=nil;SendStandMessage("Unlocked.")else local f=GetPlayer(n);if f then TargetPlayer=f;SendStandMessage("Target: "..f.Name)else SendStandMessage("Not found: "..n)end end end
+    Commands.bring=function()local t=GetTargetCharacter();if t and GetOwnerCharacter()then t.HumanoidRootPart.CFrame=GetOwnerCharacter().HumanoidRootPart.CFrame end end
+    Commands.gbring=function()local t=GetTargetCharacter();if t and GetOwnerCharacter()then Fire("Melee","Social","Carry",t.Torso);task.wait(0.2);t.HumanoidRootPart.CFrame=GetOwnerCharacter().HumanoidRootPart.CFrame end end
+    Commands.smite=function()local t=GetTargetCharacter();if t then t.HumanoidRootPart.Velocity=Vector3.new(0,2000,0)end end
+    Commands.view=function()if GetTargetCharacter()then Camera.CameraSubject=GetTargetCharacter().Humanoid end end;Commands["view!"]=Commands.view
+    Commands.frame=function()Config.Position="Target"end;Commands.bag=function()local t=GetTargetCharacter();if t then Invoke("Melee","Social","Bag",t.Torso)end end
+    Commands.arrest=function()local t=GetTargetCharacter();if t then Invoke("Melee","Social","Arrest",t.Torso)end end
+    Commands.knock=function()local t=GetTargetCharacter();if t then Invoke("Melee","Melee",Config.Melee,t.HumanoidRootPart.CFrame+Vector3.new(0,2,0),t.Torso)end end;Commands.k=Commands.knock
+    Commands.pull=function()local t=GetTargetCharacter();if t then Invoke("Melee","Social","Hairpull",t.Torso)end end
+    Commands.taser=function()local t=GetTargetCharacter();if t then Fire("Gun","Gun","Shoot",t.HumanoidRootPart.Position,t.Torso,"Taser")end end
+    C.autokill=function()AutoKillLoop=not AutoKillLoop;if AutoKillLoop and TargetPlayer then SendStandMessage("Autokill ON.");LoopKill(TargetPlayer,false)else AutoKillLoop=false;SendStandMessage("Autokill OFF.")end end
+    C.stomp=function()local t=GetTargetCharacter();if t then Fire("Stomp","Stomp",t.Torso)end end
+    C.annoy=function()AnnoyLoop=not AnnoyLoop;SendStandMessage("Annoy: "..tostring(AnnoyLoop))end;C.kannoy=C.annoy
+    C.gknock=function()local t=GetTargetCharacter();if t then Fire("Gun","Gun","Shoot",t.HumanoidRootPart.Position,t.Torso,Config.GunMode)end end;C.gstomp=C.gknock
+    C.gauto=function()GAutoKillLoop=not GAutoKillLoop;if GAutoKillLoop and TargetPlayer then SendStandMessage("Gun Autokill ON.");LoopKill(TargetPlayer,true)else GAutoKillLoop=false;SendStandMessage("Gun Autokill OFF.")end end
+    C.fstomp=function()local t=GetTargetCharacter();if t then Invoke("Melee","Melee","Flamethrower",t.HumanoidRootPart.CFrame,t.Torso)end end;C.fknock=C.fstomp
+    C.rk=function()local t=GetTargetCharacter();if t and t:FindFirstChild("Right Leg")then t["Right Leg"]:Destroy()end end
+    C.rm=function()local t=GetTargetCharacter();if t then for _,v in pairs(t:GetChildren())do if v:IsA("BasePart")then v:Destroy()end end end end
+    
+    -- Misc
+    C.blow=function()Animate("6522770228")end;C.doggy=function()Animate("6522765039")end
+    C["hide!"]=function()Config.AutoMask=true end;C.surgeon=function()Config.MaskMode="Surgeon"end;C.paintball=function()Config.MaskMode="Paintball"end;C.pumpkin=function()Config.MaskMode="Pumpkin"end
+    C.hockey=function()Config.MaskMode="Hockey"end;C.ninja=function()Config.MaskMode="Ninja"end;C.riot=function()Config.MaskMode="Riot"end;C.breathing=function()Config.MaskMode="Breathing"end;C.skull=function()Config.MaskMode="Skull"end
+    C.hover=function()Config.FlyMode="Hover"end;C.flyv1=function()Config.FlyMode="FlyV1"end;C.flyv2=function()Config.FlyMode="FlyV2"end;C.glide=function()Config.FlyMode="Glide"end;C.heaven=function()Config.FlyMode="Heaven"end
+    C.goto=function(a)local p=a[1]and a[1]:lower();if Locations[p]and GetOwnerCharacter()then GetOwnerCharacter().HumanoidRootPart.CFrame=CFrame.new(Locations[p])end end
+    for _,al in ipairs({"goto!","tp!","to!",".tp",".to",".goto"})do C[al]=C.goto end
+    C.give=function(a)local p=GetPlayer(a[1]);if p then CurrentOwner=p;SendStandMessage("Stand given to "..p.Name)end end;C["return"]=function()CurrentOwner=StandAccount;SendStandMessage("Stand returned.")end
+    C["gun!"]=function()Invoke("Purchase",Config.GunMode,"Guns",100)end;C.rifle=function()Config.GunMode="Rifle"end;C.lmg=function()Config.GunMode="LMG"end;C.aug=function()Config.GunMode="Aug"end
+    C["autodrop!"]=function()AutoDropping=true end;C["unautodrop!"]=function()AutoDropping=false end
+    C["wallet!"]=function()local c=GetOwnerCharacter();if c and c:FindFirstChild("Wallet")then c.Wallet:Clone().Parent=c end end;C["unwallet!"]=function()local c=GetOwnerCharacter();if c and c:FindFirstChild("Wallet")then c.Wallet:Destroy()end end
+    C.dcash=function()Fire("DropCash",15000)end
+    C["left!"]=function()Config.Position="Left"end;C["right!"]=function()Config.Position="Right"end;C["back!"]=function()Config.Position="Back"end;C["under!"]=function()Config.Position="Under"end;C["alt!"]=function()Config.Position="Mid"end
+    C["upright!"]=function()Config.Position="UpRight"end;C["upleft!"]=function()Config.Position="UpLeft"end;C["upcenter!"]=function()Config.Position="UpMid"end;C["walk!"]=function()Config.Position="Walk"end
+    C["ac!"]=function()AutoCalling=not AutoCalling end;C["rejoin!"]=function()TeleportService:Teleport(game.PlaceId)end;C["rj!"]=C["rejoin!"];C["leave!"]=function()LocalPlayer:Kick()end
+    C["autosave!"]=function()AutoSaving=true end;C["unautosave!"]=function()AutoSaving=false end;C["re!"]=function()if GetOwnerCharacter()then GetOwnerCharacter().Humanoid.Health=0 end end
+    C["heal!"]=function()local h=GetOwnerCharacter().Humanoid;if h then h.Health=h.MaxHealth end end;C["song!"]=function()PlaySound(Config.CustomSong)end
+    C["stopaudio!"]=function()for _,s in pairs(Workspace:GetChildren())do if s:IsA("Sound")then s:Stop()end end end;C["stop!"]=function()Config.Position="Stop"end
+    C["crew!"]=function()if Config.CrewID then pcall(GroupService.JoinGroup,GroupService,Config.CrewID)end end;C["uncrew!"]=function()if Config.CrewID then pcall(GroupService.LeaveGroup,GroupService,Config.CrewID)end end
+    C["moveset1"]=function()Invoke("Melee","Moveset",1)end;C["moveset2"]=function()Invoke("Melee","Moveset",2)end
+    C["weld!"]=function()local c=GetOwnerCharacter();if c then c.HumanoidRootPart.Anchored=true end end;C["unblock!"]=function()local c=GetOwnerCharacter();if c then c.HumanoidRootPart.Anchored=false end end
+    C.pose1=function()local p=StandData[Config.StandMode]and StandData[Config.StandMode].Poses;if p then Animate(p[1])end end;C.pose2=function()local p=StandData[Config.StandMode]and StandData[Config.StandMode].Poses;if p then Animate(p[2])end end;C.pose3=function()local p=StandData[Config.StandMode]and StandData[Config.StandMode].Poses;if p then Animate(p[3])end end
+    C["police!"]=function()if Teams:FindFirstChild("Police")then LocalPlayer.Team=Teams.Police end end
+    C["lettuce!"]=function()AutoLettuce=true end;C["unlettuce!"]=function()AutoLettuce=false end
+    C["lowgfx!"]=function()settings().Rendering.QualityLevel="Level01"end;C["redeem!"]=function(a)Fire("Code",a[1])end
+    C["unjail!"]=function()if GetOwnerCharacter()then GetOwnerCharacter().HumanoidRootPart.CFrame=CFrame.new(-520,18,50)end end
+    C["barrage!"]=function()Animate("6522778945")end;C["muda!"]=C["barrage!"];C["ora!"]=C["barrage!"]
+    C["altmode!"]=function(a)local f=GetPlayer(a[1]);if f then AltTarget=f;SendStandMessage("Alt target: "..f.Name)end end
+    C["vhc!"]=function()Fire("Vehicle","Car")end
+
     function ProcessCommand(message, speaker)
         if not CurrentOwner or speaker ~= CurrentOwner.Name then return end
         local prefix = Config.CustomPrefix or "."
@@ -236,7 +243,6 @@ coroutine.wrap(function()
     function RunMain()
         if not Initialize() then return end
         PopulateDataTables()
-        
         if Config.LowGraphics then settings().Rendering.QualityLevel = "Level01" end
         if Config.Hidescreen then local s=Instance.new("ScreenGui", CoreGui); Instance.new("Frame",s).Size=UDim2.new(1,0,1,0) end
         Say("Stando V5 Initialized on " .. LocalPlayer.Name .. ". Awaiting Owner: " .. OwnerName)
@@ -287,4 +293,4 @@ coroutine.wrap(function()
         Say("Stando V5 failed to initialize: " .. tostring(err))
     end
     
-end)() -- End and execute the coroutine wrapper
+end)()
