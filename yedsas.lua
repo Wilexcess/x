@@ -1,10 +1,9 @@
 --[[
-    STANDO V5 - DEFINITIVE & POLISHED VERSION (Coroutine Execution)
-    This version uses coroutine.wrap for maximum stability and compatibility.
-    This should prevent the script from halting after initialization.
+    STANDO V5 - DEFINITIVE & POLISHED VERSION (Remote Path Hotfix)
+    This version corrects the path to the chat RemoteEvent, which was causing the
+    initialization to fail due to a game update.
 ]]
 
--- This wrapper ensures the entire script runs in its own protected thread.
 coroutine.wrap(function()
     
     if not game:IsLoaded() then
@@ -46,7 +45,7 @@ coroutine.wrap(function()
     local AutoKillLoop, GAutoKillLoop, AutoLettuce = false, false, false
     
     -- Data Tables
-    local Commands, StandData, Positions, Locations, Aliases = {}, {}, {}, {}, {}
+    local Commands, StandData, Positions, Locations = {}, {}, {}, {}
     local Prediction = { Velocity = Vector3.new() }
     local Remotes = {}
     
@@ -57,8 +56,12 @@ coroutine.wrap(function()
     function Initialize()
         print("Stando V5: Finding game RemoteEvents...")
         local success, err = pcall(function()
+            -- ===================================================================
+            -- >> HOTFIX: Corrected the path for the chat remote <<
+            -- ===================================================================
+            Remotes.SayMessage = TextChatService:WaitForChild("TextChatRemoteEvent", 15)
+            -- ===================================================================
             Remotes.Stomp = ReplicatedStorage:WaitForChild("Main", 15)
-            Remotes.SayMessage = ReplicatedStorage:WaitForChild("DefaultChatSystemChatEvents", 15):WaitForChild("SayMessageRequest", 15)
             Remotes.Animation = ReplicatedStorage:WaitForChild("Animation", 15)
             Remotes.Gun = ReplicatedStorage:WaitForChild("Main", 15)
             Remotes.Melee = ReplicatedStorage:WaitForChild("Main", 15)
@@ -112,7 +115,8 @@ coroutine.wrap(function()
     --\\=========================================================================//
     
     function FindStand() for _, p in pairs(Players:GetPlayers()) do if p.Name == OwnerName then StandAccount, CurrentOwner = p, p; return true end end return false end
-    function Say(message) if Remotes.SayMessage then pcall(function() Remotes.SayMessage:FireServer(message, "All") end) end end
+    -- The new Say function for the updated TextChatService
+    function Say(message) if Remotes.SayMessage then pcall(function() Remotes.SayMessage:FireServer(message, {}) end) end end
     function SendStandMessage(message) if Config.ChatCmds then Say(message) end end
     function GetPlayer(name) for _, p in pairs(Players:GetPlayers()) do if p.Name:lower():sub(1, #name) == name:lower() then return p end end return nil end
     function GetTargetCharacter() return TargetPlayer and TargetPlayer.Character and TargetPlayer.Character:FindFirstChild("HumanoidRootPart") and TargetPlayer.Character end
@@ -154,7 +158,7 @@ coroutine.wrap(function()
                 task.wait(0.1)
             end
             getgenv()[loopVar] = false
-            SendStandMessage("Autokill loop for " .. target.Name .. " finished.")
+            SendStandMessage("Auto-kill loop for " .. target.Name .. " finished.")
         end)
     end
     
