@@ -1,7 +1,7 @@
 --[[
-    STANDO V5 - DEFINITIVE & POLISHED VERSION
-    This script is architected for stability by waiting for the game and character to be fully loaded.
-    It includes robust remote finding, error handling, and all previously discussed features.
+    STANDO V5 - DEFINITIVE & POLISHED VERSION (Syntax Error v2 FIXED)
+    This version corrects the '...' vararg error. All logic and initialization
+    is robust and designed for stability.
 ]]
 
 if not game:IsLoaded() then
@@ -9,7 +9,7 @@ if not game:IsLoaded() then
     game.Loaded:Wait()
 end
 print("Stando V5: Game loaded.")
-task.wait(2) -- Extra buffer for services to initialize
+task.wait(2)
 
 --//=========================================================================\\
 --||                                SERVICES                                 ||
@@ -48,7 +48,61 @@ local Prediction = { Velocity = Vector3.new() }
 local Remotes = {}
 
 --//=========================================================================\\
---||                             MAIN FUNCTIONS                              ||
+--||                           INITIALIZATION                                ||
+--\\=========================================================================//
+
+function Initialize()
+    print("Stando V5: Finding game RemoteEvents...")
+    Remotes.Stomp = ReplicatedStorage:WaitForChild("Main", 10)
+    Remotes.SayMessage = ReplicatedStorage:WaitForChild("DefaultChatSystemChatEvents", 10):WaitForChild("SayMessageRequest", 10)
+    Remotes.Animation = ReplicatedStorage:WaitForChild("Animation", 10)
+    Remotes.Gun = ReplicatedStorage:WaitForChild("Main", 10)
+    Remotes.Melee = ReplicatedStorage:WaitForChild("Main", 10)
+    Remotes.Purchase = ReplicatedStorage.Assets.Remotes:WaitForChild("RequestStorePurchase", 10)
+    Remotes.DropCash = ReplicatedStorage.Remotes:WaitForChild("DropDHC", 10)
+    Remotes.Vehicle = ReplicatedStorage.Assets.Remotes:WaitForChild("VehicleEvent", 10)
+    Remotes.Code = ReplicatedStorage.Remotes:WaitForChild("RedeemCode", 10)
+    Remotes.Heal = ReplicatedStorage:WaitForChild("Main", 10)
+    
+    for name, remote in pairs(Remotes) do
+        if not remote then
+            warn("Stando V5 WARNING: Could not find RemoteEvent '"..name.."'. Some functions may fail.")
+        end
+    end
+    print("Stando V5: RemoteEvents located.")
+
+    StandData = {
+        ["Star Platinum : OverHeaven"] = { Melee = "Super Punch", Gun = "M1911", Poses = { "6522904230", "6522900762", "6522896683" }, SummonSound = "6523030386" },
+        ["Star Platinum: The World"] = { Melee = "Punch", Gun = "Deagle", Poses = { "6522904230", "6522900762", "6522896683" }, SummonSound = "6523030386" },
+        ["Star Platinum, Za Warudo!"] = { Melee = "Punch", Gun = "Deagle", Poses = { "6522904230", "6522900762", "6522896683" }, SummonSound = "6523030386" },
+        ["TheWorld"] = { Melee = "Knife", Gun = "Deagle", Poses = { "6522883884", "6522879590", "6522874317" }, SummonSound = "6523019881" },
+        ["Cmoon"] = { Melee = "Punch", Gun = "Revolver", Poses = { "6522867897", "6522864197", "6522860161" }, SummonSound = "6522998877" },
+        ["King Crimson"] = { Melee = "Punch", Gun = "Revolver", Poses = { "6522853249", "6522849170", "6522844837" }, SummonSound = "6523010376" },
+        ["Killer Queen"] = { Melee = "Punch", Gun = "Glock", Poses = { "6522837330", "6522833075", "6522827943" }, SummonSound = "6523004860" },
+        ["MIH"] = { Melee = "Punch", Gun = "Glock", Poses = { "6522820573", "6522816399", "6522811467" }, SummonSound = "6523015488" },
+        ["D4C"] = { Melee = "Punch", Gun = "Revolver", Poses = { "6522804364", "6522800363", "6522795844" }, SummonSound = "6522992982" }
+    }
+    Positions = {
+        Back = CFrame.new(0, 0, 5), Left = CFrame.new(-5, 0, 0), Right = CFrame.new(5, 0, 0),
+        Mid = CFrame.new(0, 0, 0), UpMid = CFrame.new(0, 5, 0), UpLeft = CFrame.new(-5, 5, 0),
+        UpRight = CFrame.new(5, 5, 0), Target = CFrame.new(0, 0, 5), Under = CFrame.new(0, -3, 0), Walk = CFrame.new(0,0,0)
+    }
+    Locations = {
+        bank = Vector3.new(-33, 16.5, -345), roof = Vector3.new(-25, 65, -331), club = Vector3.new(-235, 17, -270),
+        casino = Vector3.new(-380, 17, -200), ufo = Vector3.new(-380, 75, -200), mil = Vector3.new(-520, 18, 50),
+        school = Vector3.new(-240, 18, 320), shop1 = Vector3.new(-5, 17, -280), shop2 = Vector3.new(20, 17, -190),
+        rev = Vector3.new(-45, 17, -110), db = Vector3.new(165, 17, -35), pool = Vector3.new(125, 17, 180),
+        armor = Vector3.new(-105, 17, 30), subway = Vector3.new(-400, -15, 20), subway1 = Vector3.new(-400, -15, 300),
+        sewer = Vector3.new(30, -5, -300), wheel = Vector3.new(225, 40, -290), safe1 = Vector3.new(-370, 1, -330),
+        safe2 = Vector3.new(-100, 1, -180), safe3 = Vector3.new(130, 1, 10), safe4 = Vector3.new(-210, 1, 220),
+        safe5 = Vector3.new(10, -30, -325), basketball = Vector3.new(30, 18, 260), boxing = Vector3.new(20, 18, 120),
+        bull = Vector3.new(225, 18, 225), downhill_rooftop = Vector3.new(-25.5, 65, -331.5),
+        uphill_rooftop = Vector3.new(-379.5, 75.5, -200), da_furniture = Vector3.new(-39, 16.5, -111)
+    }
+end
+
+--//=========================================================================\\
+--||                             HELPER FUNCTIONS                            ||
 --\\=========================================================================//
 
 function FindStand() for _, p in pairs(Players:GetPlayers()) do if p.Name == OwnerName then StandAccount, CurrentOwner = p, p; return true end end return false end
@@ -59,8 +113,22 @@ function GetTargetCharacter() return TargetPlayer and TargetPlayer.Character and
 function GetOwnerCharacter() return LocalPlayer and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character end
 function PlaySound(id) if not Config.Sounds then return end local s = Instance.new("Sound", Workspace); s.SoundId = "rbxassetid://"..tostring(id); s:Play(); game.Debris:AddItem(s, 20) end
 function Animate(animId) if Remotes.Animation and GetOwnerCharacter() then local anim = Instance.new("StringValue", GetOwnerCharacter()); anim.Name = "playanimation"; anim.Value = animId; game.Debris:AddItem(anim, 1) end end
-function Invoke(remote, ...) if Remotes[remote] then pcall(function() Remotes[remote]:InvokeServer(...) end) end end
-function Fire(remote, ...) if Remotes[remote] then pcall(function() Remotes[remote]:FireServer(...) end) end end
+
+-- CORRECTED INVOKE AND FIRE FUNCTIONS
+function Invoke(remote, ...)
+    if Remotes[remote] then
+        pcall(Remotes[remote].InvokeServer, Remotes[remote], ...)
+    end
+end
+function Fire(remote, ...)
+    if Remotes[remote] then
+        pcall(Remotes[remote].FireServer, Remotes[remote], ...)
+    end
+end
+
+--//=========================================================================\\
+--||                           COMBAT FUNCTIONS                              ||
+--\\=========================================================================//
 
 function Attack()
     TargetCharacter, OwnerCharacter = GetTargetCharacter(), GetOwnerCharacter()
@@ -82,44 +150,25 @@ function GunAttack()
 end
 
 function LoopKill(target, useGun)
-    local loopType = useGun and "GAutoKillLoop" or "AutoKillLoop"
-    getgenv()[loopType] = true
+    local loopVar = useGun and "GAutoKillLoop" or "AutoKillLoop"
+    getgenv()[loopVar] = true
     task.spawn(function()
-        while getgenv()[loopType] and TargetPlayer == target and GetTargetCharacter() and GetTargetCharacter().Humanoid.Health > 0 do
+        while getgenv()[loopVar] and TargetPlayer == target and GetTargetCharacter() and GetTargetCharacter().Humanoid.Health > 0 do
             if useGun then GunAttack() else Attack() end
             task.wait(0.1)
         end
-        getgenv()[loopType] = false
-        SendStandMessage("Auto-kill loop for " .. target.Name .. " finished.")
+        getgenv()[loopVar] = false
+        SendStandMessage("Autokill loop for " .. target.Name .. " finished.")
     end)
 end
 
-function ProcessCommand(message, speaker)
-    if not CurrentOwner or speaker ~= CurrentOwner.Name then return end
-    local prefix = Config.CustomPrefix or "."
-    local args = {}; for word in message:gmatch("%S+") do table.insert(args, word) end
-    if #args == 0 then return end
-    local cmd = table.remove(args, 1):lower()
-    local isPrefixed = cmd:sub(1, 1) == prefix
-    if isPrefixed then cmd = cmd:sub(2) end
-    if Commands[cmd] then print("Stando V5: Executing command '"..cmd.."'"); Commands[cmd](args) end
-end
-
 --//=========================================================================\\
---||                                MAIN SCRIPT                              ||
+--||                           COMMAND HANDLER                               ||
 --\\=========================================================================//
-
--- Stage 1: Initialize services and data
-Initialize()
-StandData = { ["Star Platinum : OverHeaven"]={Melee="Super Punch",Gun="M1911",Poses={"6522904230","6522900762","6522896683"},SummonSound="6523030386"},["Star Platinum: The World"]={Melee="Punch",Gun="Deagle",Poses={"6522904230","6522900762","6522896683"},SummonSound="6523030386"},["Star Platinum, Za Warudo!"]={Melee="Punch",Gun="Deagle",Poses={"6522904230","6522900762","6522896683"},SummonSound="6523030386"},["TheWorld"]={Melee="Knife",Gun="Deagle",Poses={"6522883884","6522879590","6522874317"},SummonSound="6523019881"},["Cmoon"]={Melee="Punch",Gun="Revolver",Poses={"6522867897","6522864197","6522860161"},SummonSound="6522998877"},["King Crimson"]={Melee="Punch",Gun="Revolver",Poses={"6522853249","6522849170","6522844837"},SummonSound="6523010376"},["Killer Queen"]={Melee="Punch",Gun="Glock",Poses={"6522837330","6522833075","6522827943"},SummonSound="6523004860"},["MIH"]={Melee="Punch",Gun="Glock",Poses={"6522820573","6522816399","6522811467"},SummonSound="6523015488"},["D4C"]={Melee="Punch",Gun="Revolver",Poses={"6522804364","6522800363","6522795844"},SummonSound="6522992982"}}
-Positions = {Back=CFrame.new(0,0,5),Left=CFrame.new(-5,0,0),Right=CFrame.new(5,0,0),Mid=CFrame.new(0,0,0),UpMid=CFrame.new(0,5,0),UpLeft=CFrame.new(-5,5,0),UpRight=CFrame.new(5,5,0),Target=CFrame.new(0,0,5),Under=CFrame.new(0,-3,0),Walk=CFrame.new(0,0,0)}
-Locations = {bank=Vector3.new(-33,16.5,-345),roof=Vector3.new(-25,65,-331),club=Vector3.new(-235,17,-270),casino=Vector3.new(-380,17,-200),ufo=Vector3.new(-380,75,-200),mil=Vector3.new(-520,18,50),school=Vector3.new(-240,18,320),shop1=Vector3.new(-5,17,-280),shop2=Vector3.new(20,17,-190),rev=Vector3.new(-45,17,-110),db=Vector3.new(165,17,-35),pool=Vector3.new(125,17,180),armor=Vector3.new(-105,17,30),subway=Vector3.new(-400,-15,20),subway1=Vector3.new(-400,-15,300),sewer=Vector3.new(30,-5,-300),wheel=Vector3.new(225,40,-290),safe1=Vector3.new(-370,1,-330),safe2=Vector3.new(-100,1,-180),safe3=Vector3.new(130,1,10),safe4=Vector3.new(-210,1,220),safe5=Vector3.new(10,-30,-325),basketball=Vector3.new(30,18,260),boxing=Vector3.new(20,18,120),bull=Vector3.new(225,18,225),downhill_rooftop=Vector3.new(-25.5,65,-331.5),uphill_rooftop=Vector3.new(-379.5,75.5,-200),da_furniture=Vector3.new(-39,16.5,-111)}
-
--- Stage 2: Populate commands table
 do
     local C,A=Commands,Aliases;C.s=function()C.summon()end;C["/e q"]=C.s;C["/e q1"]=C.s;C["/e q2"]=C.s;C["/e q3"]=C.s;C["summon!"]=C.s;C["summon1!"]=C.s;C["summon2!"]=C.s;C["summon3!"]=C.s
     for n,_ in pairs(StandData) do C[n:lower().."!"]=function()Config.StandMode=n;C.summon()end end
-    C.summon=function()Attacking=true;if Config.SummonPoses and Config.SummonPoses~="false" then local pN=tonumber(Config.SummonPoses:match("%d+"))or 1;if StandData[Config.StandMode].Poses[pN]then Animate(StandData[Config.StandMode].Poses[pN])end end;if Config.SummonMusic then local sId=Config.SummonMusicID=='Default' and StandData[Config.StandMode].SummonSound or Config.SummonMusicID;PlaySound(sId)end;Say(Config.CustomSummon)end
+    C.summon=function()Attacking=true;if Config.SummonPoses and Config.SummonPoses~="false" then local pN=tonumber(Config.SummonPoses:match("%d+"))or 1;if StandData[Config.StandMode]and StandData[Config.StandMode].Poses[pN]then Animate(StandData[Config.StandMode].Poses[pN])end end;if Config.SummonMusic then local sId=Config.SummonMusicID=='Default'and StandData[Config.StandMode]and StandData[Config.StandMode].SummonSound or Config.SummonMusicID;PlaySound(sId)end;Say(Config.CustomSummon)end
     C.vanish=function()Attacking,AnnoyLoop,AutoKillLoop,GAutoKillLoop=false,false,false,false;Say("Vanish!")end;A["vanish!"]=C.vanish;A["desummon!"]=C.vanish;A["/e w"]=C.vanish
     C["attack!"]=function()Attacking=true end;C["unattack!"]=function()Attacking=false end;A["stab!"]=C["attack!"];A["unstab!"]=C["unattack!"];A["gkill!"]=C["attack!"]
     C["combat!"]=function()Config.Melee="Punch"end;C["knife!"]=function()Config.Melee="Knife"end;C["pitch!"]=function()Config.Melee="Pitchfork"end;C["sign!"]=function()Config.Melee="Stopsign"end;C["whip!"]=function()Config.Melee="Whip"end
@@ -164,7 +213,7 @@ do
     C["crew!"]=function()if Config.CrewID then pcall(GroupService.JoinGroup,GroupService,Config.CrewID)end end;C["uncrew!"]=function()if Config.CrewID then pcall(GroupService.LeaveGroup,GroupService,Config.CrewID)end end
     C["moveset1"]=function()Invoke("Melee","Moveset",1)end;C["moveset2"]=function()Invoke("Melee","Moveset",2)end
     C["weld!"]=function()local c=GetOwnerCharacter();if c then c.HumanoidRootPart.Anchored=true end end;C["unblock!"]=function()local c=GetOwnerCharacter();if c then c.HumanoidRootPart.Anchored=false end end
-    C.pose1=function()local p=StandData[Config.StandMode].Poses;if p then Animate(p[1])end end;C.pose2=function()local p=StandData[Config.StandMode].Poses;if p then Animate(p[2])end end;C.pose3=function()local p=StandData[Config.StandMode].Poses;if p then Animate(p[3])end end
+    C.pose1=function()local p=StandData[Config.StandMode]and StandData[Config.StandMode].Poses;if p then Animate(p[1])end end;C.pose2=function()local p=StandData[Config.StandMode]and StandData[Config.StandMode].Poses;if p then Animate(p[2])end end;C.pose3=function()local p=StandData[Config.StandMode]and StandData[Config.StandMode].Poses;if p then Animate(p[3])end end
     C["police!"]=function()if Teams:FindFirstChild("Police")then LocalPlayer.Team=Teams.Police end end
     C["lettuce!"]=function()AutoLettuce=true end;C["unlettuce!"]=function()AutoLettuce=false end
     C["lowgfx!"]=function()settings().Rendering.QualityLevel="Level01"end;C["redeem!"]=function(a)Fire("Code",a[1])end
@@ -174,71 +223,74 @@ do
     C["vhc!"]=function()Fire("Vehicle","Car")end
 end
 
--- Stage 3: Apply initial settings and find the owner
-if Config.LowGraphics then settings().Rendering.QualityLevel = "Level01" end
-if Config.Hidescreen then local s=Instance.new("ScreenGui", CoreGui); Instance.new("Frame",s).Size=UDim2.new(1,0,1,0) end
+function RunMain()
+    -- Stage 1: Apply initial settings
+    if Config.LowGraphics then settings().Rendering.QualityLevel = "Level01" end
+    if Config.Hidescreen then local s=Instance.new("ScreenGui", CoreGui); Instance.new("Frame",s).Size=UDim2.new(1,0,1,0) end
+    Say("Stando V5 Initialized on " .. LocalPlayer.Name .. ". Awaiting Owner: " .. OwnerName)
 
-Say("V5.0 Initialized on " .. LocalPlayer.Name .. ". Awaiting Owner: " .. OwnerName)
+    -- Stage 2: Find the owner account
+    while not FindStand() do
+        print("Stando V5: Searching for Owner...")
+        task.wait(1)
+    end
+    Say("Owner located: " .. StandAccount.Name)
 
-while not FindStand() do
-    print("Stando V5: Searching for Owner...")
-    task.wait(1)
-end
-Say("Owner located: " .. StandAccount.Name)
+    -- Stage 3: Wait for character to spawn and perform startup actions
+    if not GetOwnerCharacter() then
+        print("Stando V5: Waiting for character to spawn...")
+        LocalPlayer.CharacterAdded:Wait()
+        task.wait(3)
+        print("Stando V5: Character loaded.")
+    end
 
--- Stage 4: Wait for character and perform startup actions
-if not GetOwnerCharacter() then
-    print("Stando V5: Waiting for character to spawn...")
-    LocalPlayer.CharacterAdded:Wait()
-    task.wait(3) -- Extra wait for gear, etc.
-    print("Stando V5: Character loaded.")
-end
+    pcall(function()
+        if Config.AutoMask then Fire("Purchase", Config.MaskMode, "Masks") end
+        task.wait(0.5)
+        Fire("Purchase", Config.GunMode, "Guns", 100)
+        print("Stando V5: Attempted to purchase initial gear.")
+    end)
 
-pcall(function()
-    if Config.AutoMask then Fire("Purchase", Config.MaskMode, "Masks") end
-    task.wait(0.5)
-    Fire("Purchase", Config.GunMode, "Guns", 100)
-    print("Stando V5: Attempted to purchase initial gear.")
-end)
+    -- Stage 4: Start listeners and main loop
+    TextChatService.MessageReceived:Connect(function(msg) ProcessCommand(msg.Text, msg.TextSource.Name) end)
+    
+    RunService.Heartbeat:Connect(function()
+        local success, err = pcall(function()
+            OwnerCharacter = GetOwnerCharacter()
+            TargetCharacter = GetTargetCharacter()
+            
+            if TargetCharacter and TargetCharacter.Humanoid.Health > 0 then Prediction.Velocity = TargetCharacter.HumanoidRootPart.Velocity else Prediction.Velocity = Vector3.new() end
+            
+            if Attacking then if Config.Melee and Config.Melee ~= "Punch" then Attack() elseif Config.GunMode and Config.GunMode ~= "Rifle" then GunAttack() else Attack() end end
+            if Config.AntiStomp and OwnerCharacter and OwnerCharacter.Humanoid.PlatformStand then Fire("Stomp", "Stomp", OwnerCharacter.Torso) end
+            if AutoSaving and OwnerCharacter and OwnerCharacter.Humanoid.Health < 25 then OwnerCharacter.HumanoidRootPart.CFrame = CFrame.new(Locations[Config.AutoSaveLocation]) end
+            if AutoDropping then Fire("DropCash", 1000) end
+            if AutoLettuce and OwnerCharacter and OwnerCharacter:FindFirstChild("Lettuce") then OwnerCharacter.Lettuce:Activate() end
+            if AnnoyLoop and TargetCharacter and OwnerCharacter then TargetCharacter.HumanoidRootPart.CFrame = OwnerCharacter.HumanoidRootPart.CFrame * CFrame.new(0,0,-3) end
 
--- Stage 5: Start listeners and main loop
-TextChatService.MessageReceived:Connect(function(msg) ProcessCommand(msg.Text, msg.TextSource.Name) end)
-LocalPlayer.Chatted:Connect(function(msg) ProcessCommand(msg, LocalPlayer.Name) end) -- Fallback for owner account chat
-
-RunService.Heartbeat:Connect(function()
-    local success, err = pcall(function()
-        OwnerCharacter = GetOwnerCharacter()
-        
-        if TargetPlayer and TargetPlayer.Character and TargetPlayer.Character.Humanoid.Health > 0 then
-            Prediction.Velocity = TargetPlayer.Character.HumanoidRootPart.Velocity
-        else
-            Prediction.Velocity = Vector3.new()
-        end
-        
-        if Attacking then if Config.GunMode and Config.GunMode ~= "Rifle" then GunAttack() else Attack() end end
-        if Config.AntiStomp and OwnerCharacter and OwnerCharacter.Humanoid.PlatformStand then Fire("Stomp", "Stomp", OwnerCharacter.Torso) end
-        if AutoSaving and OwnerCharacter and OwnerCharacter.Humanoid.Health < 25 then OwnerCharacter.HumanoidRootPart.CFrame = CFrame.new(Locations[Config.AutoSaveLocation]) end
-        if AutoDropping then Fire("DropCash", 1000) end
-        if AutoLettuce and OwnerCharacter and OwnerCharacter:FindFirstChild("Lettuce") then OwnerCharacter.Lettuce:Activate() end
-        if AnnoyLoop and GetTargetCharacter() and OwnerCharacter then GetTargetCharacter().HumanoidRootPart.CFrame = OwnerCharacter.HumanoidRootPart.CFrame * CFrame.new(0,0,-3) end
-
-        if OwnerCharacter and CurrentOwner and CurrentOwner.Character and Config.Position ~= "Stop" then
-            local posTarget = AltTarget and AltTarget.Character or CurrentOwner.Character
-            local followTarget = Config.Position == "Target" and (GetTargetCharacter() or posTarget) or posTarget
-            if followTarget and followTarget.HumanoidRootPart then
-                local goal = followTarget.HumanoidRootPart.CFrame * (Positions[Config.Position] or CFrame.new())
-                if Config.Smoothing then 
-                    OwnerCharacter.HumanoidRootPart.CFrame = OwnerCharacter.HumanoidRootPart.CFrame:Lerp(goal, 0.2)
-                else
-                    OwnerCharacter.HumanoidRootPart.CFrame = goal
+            if OwnerCharacter and CurrentOwner and CurrentOwner.Character and Config.Position ~= "Stop" then
+                local posTarget = AltTarget and AltTarget.Character or CurrentOwner.Character
+                local followTarget = Config.Position == "Target" and (TargetCharacter or posTarget) or posTarget
+                if followTarget and followTarget.HumanoidRootPart then
+                    local goal = followTarget.HumanoidRootPart.CFrame * (Positions[Config.Position] or CFrame.new())
+                    if Config.Smoothing then 
+                        OwnerCharacter.HumanoidRootPart.CFrame = OwnerCharacter.HumanoidRootPart.CFrame:Lerp(goal, 0.2)
+                    else
+                        OwnerCharacter.HumanoidRootPart.CFrame = goal
+                    end
                 end
             end
-        end
+        end)
+        if not success then warn("Stando V5 Heartbeat Error:", err) end
     end)
-    if not success then
-        warn("Stando V5 Heartbeat Error:", err)
-    end
-end)
 
-print("Stando V5: Main loop is running.")
-SendStandMessage("Stando V5 is fully operational.")
+    print("Stando V5: Main loop is now running.")
+    SendStandMessage("Stando V5 is fully operational.")
+end
+
+-- Run the main function in a protected call to catch any initialization errors
+local success, err = pcall(RunMain)
+if not success then
+    warn("Stando V5 failed to initialize:", err)
+    Say("Stando V5 failed to initialize: " .. tostring(err))
+end
