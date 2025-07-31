@@ -1,11 +1,11 @@
 --[[
-    STANDO V5 - DEFINITIVE & POLISHED VERSION (THREADED)
-    This final version wraps the entire execution in a new thread to ensure
-    it runs without interruption after being loaded. This should solve the
-    issue of the script initializing but not proceeding.
+    STANDO V5 - DEFINITIVE & POLISHED VERSION (Coroutine Execution)
+    This version uses coroutine.wrap for maximum stability and compatibility.
+    This should prevent the script from halting after initialization.
 ]]
 
-spawn(function() -- Start of the new thread wrapper
+-- This wrapper ensures the entire script runs in its own protected thread.
+coroutine.wrap(function()
     
     if not game:IsLoaded() then
         print("Stando V5: Game not loaded, waiting...")
@@ -17,7 +17,7 @@ spawn(function() -- Start of the new thread wrapper
     --//=========================================================================\\
     --||                                SERVICES                                 ||
     --\\=========================================================================//
-    
+
     local Players = game:GetService("Players")
     local Workspace = game:GetService("Workspace")
     local CoreGui = game:GetService("CoreGui")
@@ -39,12 +39,14 @@ spawn(function() -- Start of the new thread wrapper
     local Config = getgenv().Configuration or {}
     local OwnerName = getgenv().Owner
     
+    -- Script State
     local StandAccount, CurrentOwner, TargetPlayer, AltTarget
     local OwnerCharacter, TargetCharacter
     local Attacking, AutoSaving, AutoDropping, Boxing, AnnoyLoop = false, false, false, false, false
     local AutoKillLoop, GAutoKillLoop, AutoLettuce = false, false, false
     
-    local Commands, StandData, Positions, Locations = {}, {}, {}, {}
+    -- Data Tables
+    local Commands, StandData, Positions, Locations, Aliases = {}, {}, {}, {}, {}
     local Prediction = { Velocity = Vector3.new() }
     local Remotes = {}
     
@@ -54,24 +56,27 @@ spawn(function() -- Start of the new thread wrapper
     
     function Initialize()
         print("Stando V5: Finding game RemoteEvents...")
-        Remotes.Stomp = ReplicatedStorage:WaitForChild("Main", 10)
-        Remotes.SayMessage = ReplicatedStorage:WaitForChild("DefaultChatSystemChatEvents", 10):WaitForChild("SayMessageRequest", 10)
-        Remotes.Animation = ReplicatedStorage:WaitForChild("Animation", 10)
-        Remotes.Gun = ReplicatedStorage:WaitForChild("Main", 10)
-        Remotes.Melee = ReplicatedStorage:WaitForChild("Main", 10)
-        Remotes.Purchase = ReplicatedStorage.Assets.Remotes:WaitForChild("RequestStorePurchase", 10)
-        Remotes.DropCash = ReplicatedStorage.Remotes:WaitForChild("DropDHC", 10)
-        Remotes.Vehicle = ReplicatedStorage.Assets.Remotes:WaitForChild("VehicleEvent", 10)
-        Remotes.Code = ReplicatedStorage.Remotes:WaitForChild("RedeemCode", 10)
-        Remotes.Heal = ReplicatedStorage:WaitForChild("Main", 10)
-        
-        for name, remote in pairs(Remotes) do
-            if not remote then
-                warn("Stando V5 WARNING: Could not find RemoteEvent '"..name.."'. Some functions may fail.")
-            end
+        local success, err = pcall(function()
+            Remotes.Stomp = ReplicatedStorage:WaitForChild("Main", 15)
+            Remotes.SayMessage = ReplicatedStorage:WaitForChild("DefaultChatSystemChatEvents", 15):WaitForChild("SayMessageRequest", 15)
+            Remotes.Animation = ReplicatedStorage:WaitForChild("Animation", 15)
+            Remotes.Gun = ReplicatedStorage:WaitForChild("Main", 15)
+            Remotes.Melee = ReplicatedStorage:WaitForChild("Main", 15)
+            Remotes.Purchase = ReplicatedStorage.Assets.Remotes:WaitForChild("RequestStorePurchase", 15)
+            Remotes.DropCash = ReplicatedStorage.Remotes:WaitForChild("DropDHC", 15)
+            Remotes.Vehicle = ReplicatedStorage.Assets.Remotes:WaitForChild("VehicleEvent", 15)
+            Remotes.Code = ReplicatedStorage.Remotes:WaitForChild("RedeemCode", 15)
+            Remotes.Heal = ReplicatedStorage:WaitForChild("Main", 15)
+        end)
+        if not success then
+            warn("Stando V5 FATAL ERROR: Could not find critical remotes. The game may have updated. Error:", err)
+            return false
         end
         print("Stando V5: RemoteEvents located.")
-    
+        return true
+    end
+
+    function PopulateDataTables()
         StandData = {
             ["Star Platinum : OverHeaven"] = { Melee = "Super Punch", Gun = "M1911", Poses = { "6522904230", "6522900762", "6522896683" }, SummonSound = "6523030386" },
             ["Star Platinum: The World"] = { Melee = "Punch", Gun = "Deagle", Poses = { "6522904230", "6522900762", "6522896683" }, SummonSound = "6523030386" },
@@ -84,9 +89,9 @@ spawn(function() -- Start of the new thread wrapper
             ["D4C"] = { Melee = "Punch", Gun = "Revolver", Poses = { "6522804364", "6522800363", "6522795844" }, SummonSound = "6522992982" }
         }
         Positions = {
-            Back = CFrame.new(0, 0, 5), Left = CFrame.new(-5, 0, 0), Right = CFrame.new(5, 0, 0),
-            Mid = CFrame.new(0, 0, 0), UpMid = CFrame.new(0, 5, 0), UpLeft = CFrame.new(-5, 5, 0),
-            UpRight = CFrame.new(5, 5, 0), Target = CFrame.new(0, 0, 5), Under = CFrame.new(0, -3, 0), Walk = CFrame.new(0,0,0)
+            Back = CFrame.new(0, 0, 5), Left = CFrame.new(-5, 0, 0), Right = CFrame.new(5, 0, 0), Mid = CFrame.new(0, 0, 0),
+            UpMid = CFrame.new(0, 5, 0), UpLeft = CFrame.new(-5, 5, 0), UpRight = CFrame.new(5, 5, 0),
+            Target = CFrame.new(0, 0, 5), Under = CFrame.new(0, -3, 0), Walk = CFrame.new(0, 0, 0)
         }
         Locations = {
             bank = Vector3.new(-33, 16.5, -345), roof = Vector3.new(-25, 65, -331), club = Vector3.new(-235, 17, -270),
@@ -114,8 +119,8 @@ spawn(function() -- Start of the new thread wrapper
     function GetOwnerCharacter() return LocalPlayer and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character end
     function PlaySound(id) if not Config.Sounds then return end local s = Instance.new("Sound", Workspace); s.SoundId = "rbxassetid://"..tostring(id); s:Play(); game.Debris:AddItem(s, 20) end
     function Animate(animId) if Remotes.Animation and GetOwnerCharacter() then local anim = Instance.new("StringValue", GetOwnerCharacter()); anim.Name = "playanimation"; anim.Value = animId; game.Debris:AddItem(anim, 1) end end
-    function Invoke(remote, ...) pcall(function() if Remotes[remote] then Remotes[remote]:InvokeServer(...) end end) end
-    function Fire(remote, ...) pcall(function() if Remotes[remote] then Remotes[remote]:FireServer(...) end end) end
+    function Invoke(remote, ...) local args = {...}; pcall(function() if Remotes[remote] then Remotes[remote]:InvokeServer(unpack(args)) end end) end
+    function Fire(remote, ...) local args = {...}; pcall(function() if Remotes[remote] then Remotes[remote]:FireServer(unpack(args)) end end) end
     
     --//=========================================================================\\
     --||                           COMBAT FUNCTIONS                              ||
@@ -149,7 +154,7 @@ spawn(function() -- Start of the new thread wrapper
                 task.wait(0.1)
             end
             getgenv()[loopVar] = false
-            SendStandMessage("Auto-kill loop for " .. target.Name .. " finished.")
+            SendStandMessage("Autokill loop for " .. target.Name .. " finished.")
         end)
     end
     
@@ -213,9 +218,21 @@ spawn(function() -- Start of the new thread wrapper
         C["altmode!"]=function(a)local f=GetPlayer(a[1]);if f then AltTarget=f;SendStandMessage("Alt target: "..f.Name)end end
         C["vhc!"]=function()Fire("Vehicle","Car")end
     end
-
+    
+    function ProcessCommand(message, speaker)
+        if not CurrentOwner or speaker ~= CurrentOwner.Name then return end
+        local prefix = Config.CustomPrefix or "."
+        local args = {}; for word in message:gmatch("%S+") do table.insert(args, word) end
+        if #args == 0 then return end
+        local cmd = table.remove(args, 1):lower()
+        if cmd:sub(1, 1) == prefix then cmd = cmd:sub(2) end
+        if Commands[cmd] then print("Stando V5: Executing command '"..cmd.."'"); Commands[cmd](args) end
+    end
+    
     function RunMain()
-        Initialize()
+        if not Initialize() then return end
+        PopulateDataTables()
+        
         if Config.LowGraphics then settings().Rendering.QualityLevel = "Level01" end
         if Config.Hidescreen then local s=Instance.new("ScreenGui", CoreGui); Instance.new("Frame",s).Size=UDim2.new(1,0,1,0) end
         Say("Stando V5 Initialized on " .. LocalPlayer.Name .. ". Awaiting Owner: " .. OwnerName)
@@ -255,6 +272,7 @@ spawn(function() -- Start of the new thread wrapper
             end)
             if not success then warn("Stando V5 Heartbeat Error:", err) end
         end)
+        
         print("Stando V5: Main loop is now running.")
         SendStandMessage("Stando V5 is fully operational.")
     end
@@ -265,4 +283,4 @@ spawn(function() -- Start of the new thread wrapper
         Say("Stando V5 failed to initialize: " .. tostring(err))
     end
     
-end) -- End of the new thread wrapper
+end)() -- End and execute the coroutine wrapper
