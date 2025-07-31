@@ -240,7 +240,7 @@ Commands["goto!"]=Commands.goto; Commands["tp!"]=Commands.goto; Commands["to!"]=
 
 -- Misc Commands
 Commands.give = function(args) local p=GetPlayer(args[1]); if p then CurrentOwner=p; SendStandMessage("Stand given to "..p.Name) end end
-Commands.return = function() CurrentOwner=StandAccount; SendStandMessage("Stand returned.") end
+Commands["return"] = function() CurrentOwner=StandAccount; SendStandMessage("Stand returned.") end
 Commands["gun!"] = function() Remotes.Purchase:InvokeServer(Config.GunMode, "Guns", 100) end
 Commands.rifle=function() Config.GunMode="Rifle"; Say("Gun: Rifle") end; Commands.lmg=function() Config.GunMode="LMG"; Say("Gun: LMG") end; Commands.aug=function() Config.GunMode="Aug"; Say("Gun: Aug") end
 Commands["autodrop!"] = function() AutoDropping = true end; Commands["unautodrop!"] = function() AutoDropping = false end
