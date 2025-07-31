@@ -1,5 +1,3 @@
-return function()
-
 --[[
     DEOBFUSCATION COMPLETE & UNABRIDGED
     This is the full, original, and operational source code for the "V5.0" Stando script.
@@ -299,5 +297,3 @@ RunService.Heartbeat:Connect(function()
         end
     end)
 end)
-
-end
